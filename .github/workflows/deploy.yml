@@ -35,9 +35,6 @@ jobs:
           eb init ${{ secrets.EB_APP_NAME }} --platform "Python 3.11" --region ${{ secrets.AWS_REGION }}
           eb use ${{ secrets.EB_ENV_NAME }}
 
-      - name: Wait for version propagation
-        run: sleep 15
-
-      - name: Deploy to Elastic Beanstalk
+      - name: Deploy to Elastic Beanstalk with --staged
         run: |
-          eb deploy
+          eb deploy --staged --verbose
