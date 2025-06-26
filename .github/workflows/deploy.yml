@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'  # or match your EB version
+          python-version: '3.11'
 
       - name: Install EB CLI
         run: |
@@ -34,6 +34,9 @@ jobs:
         run: |
           eb init ${{ secrets.EB_APP_NAME }} --platform "Python 3.11" --region ${{ secrets.AWS_REGION }}
           eb use ${{ secrets.EB_ENV_NAME }}
+
+      - name: Wait for version propagation
+        run: sleep 15
 
       - name: Deploy to Elastic Beanstalk
         run: |
