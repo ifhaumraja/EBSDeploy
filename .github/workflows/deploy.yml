@@ -1,4 +1,4 @@
-name: Deploy to Elastic Beanstalk
+name: Deploy to Elastic Beanstalk (AWS CLI)
 
 on:
   push:
@@ -18,10 +18,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install EB CLI
+      - name: Zip Application
+        run: zip -r app.zip . -x ".git/*" ".github/*"
+
+      - name: Install AWS CLI
         run: |
-          pip install --upgrade pip
-          pip install awsebcli
+          sudo apt-get update
+          sudo apt-get install -y awscli
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -30,11 +33,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Initialize EB CLI
+      - name: Set Environment Variables
         run: |
-          eb init ${{ secrets.EB_APP_NAME }} --platform "Python 3.11" --region ${{ secrets.AWS_REGION }}
-          eb use ${{ secrets.EB_ENV_NAME }}
+          echo "VERSION_LABEL=eb-${{ github.run_id }}-${{ github.run_number }}" >> $GITHUB_ENV
+          echo "S3_BUCKET=elasticbeanstalk-${{ secrets.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
 
-      - name: Deploy to Elastic Beanstalk with --staged
+      - name: Upload ZIP to S3
         run: |
-          eb deploy --staged --verbose
+          aws s3 cp app.zip s3://$S3_BUCKET/$VERSION_LABEL.zip
+
+      - name: Create EB App Version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ secrets.EB_APP_NAME }} \
+            --version-label $VERSION_LABEL \
+            --source-bundle S3Bucket=$S3_BUCKET,S3Key=$VERSION_LABEL.zip
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ secrets.EB_ENV_NAME }} \
+            --version-label $VERSION_LABEL
